@@ -1,0 +1,7 @@
+/.settings
+/Debug
+/Drivers
+.cproject
+.project
+stm32l4_flash.ld
+training_ssd1306.elf.launch
