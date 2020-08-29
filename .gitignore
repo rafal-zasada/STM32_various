@@ -5,3 +5,4 @@
 .project
 stm32l4_flash.ld
 training_ssd1306.elf.launch
+/ssd1306
