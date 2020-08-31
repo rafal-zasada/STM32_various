@@ -62,7 +62,7 @@ void SPI2_init(void)
 	// set master configuration
 	 SPI2->CR1 |= SPI_CR1_MSTR;
 
-	// set baud rate        default was 000 --> fPCLK/2
+	// set baud rate = fPCLK/256
 	SPI2->CR1 |= (SPI_CR1_BR_2 | SPI_CR1_BR_1 | SPI_CR1_BR_0);
 
 	// To enable master internally set following 2 bits:
@@ -74,10 +74,14 @@ void SPI2_init(void)
 	SPI2->CR1 |= SPI_CR1_SPE;
 }
 
-void SPI2_send(uint8_t byte)
+void SPI2_send_byte(uint8_t byte)
 {
 	if(SPI2->SR & SPI_SR_TXE)
-		*(uint8_t*)(&SPI2->DR) = byte;
+		*(uint8_t*)(&SPI2->DR) = byte; // type casting required otherwise 16 bits will be updated and sent
 }
 
+void SPI_send_data(uint8_t *data, int data_size)
+{
+
+}
 
