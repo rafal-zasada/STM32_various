@@ -1,97 +1,33 @@
 #include "ssd1306.h"
-#include "ssd1306_interface.h"
 #include "delay_ms.h"
 #include "SPI.h"
 #include "I2C.h"
+#include "GUI_msgs_UART.h"
+#include <stdio.h>
+#include "print_binary.h"
+//#include <stdlib.h>
 
-#define SSD1306_USE_I2C
-//#define SSD1306_USE_SPI
-
-#ifdef SSD1306_USE_SPI
-
- SPI not working yet !!!
-
-void ssd1306_Reset(void) {
-	// CS = High (not selected)
-//	HAL_GPIO_WritePin(SSD1306_CS_Port, SSD1306_CS_Pin, GPIO_PIN_SET);
-	ssd1306_SPI_CS_port(SET);
-
-	// Reset the OLED
-//	HAL_GPIO_WritePin(SSD1306_Reset_Port, SSD1306_Reset_Pin, GPIO_PIN_RESET);
-	ssd1306_SPI_RES_port(RESET);
-
-//	HAL_Delay(10);
-	delay_ms(10);
-
-//	HAL_GPIO_WritePin(SSD1306_Reset_Port, SSD1306_Reset_Pin, GPIO_PIN_SET);
-	ssd1306_SPI_RES_port(SET);
-
-//	HAL_Delay(10);
-	delay_ms(10);
-}
-
-// Send a byte to the command register
-void ssd1306_WriteCommand(uint8_t byte) {
-    //HAL_GPIO_WritePin(SSD1306_CS_Port, SSD1306_CS_Pin, GPIO_PIN_RESET); // select OLED
-	ssd1306_SPI_CS_port(RESET);
-
-    //HAL_GPIO_WritePin(SSD1306_DC_Port, SSD1306_DC_Pin, GPIO_PIN_RESET); // command
-	ssd1306_SPI_DC_port(RESET);
-
-    //HAL_SPI_Transmit(&SSD1306_SPI_PORT, (uint8_t *) &byte, 1, HAL_MAX_DELAY);
-    SPI2_send_byte(byte);
-
-    //HAL_GPIO_WritePin(SSD1306_CS_Port, SSD1306_CS_Pin, GPIO_PIN_SET); // un-select OLED
-	ssd1306_SPI_CS_port(SET);
-
-}
-
-// Send data
-void ssd1306_WriteData(uint8_t* buffer, size_t buff_size) {
-    //HAL_GPIO_WritePin(SSD1306_CS_Port, SSD1306_CS_Pin, GPIO_PIN_RESET); // select OLED
-	ssd1306_SPI_CS_port(RESET);
-
-  //  HAL_GPIO_WritePin(SSD1306_DC_Port, SSD1306_DC_Pin, GPIO_PIN_SET); // data
-	ssd1306_SPI_DC_port(SET);
-
-//   HAL_SPI_Transmit(&SSD1306_SPI_PORT, buffer, buff_size, HAL_MAX_DELAY);
-    SPI_send_data(buffer, buff_size);
-
- // HAL_GPIO_WritePin(SSD1306_CS_Port, SSD1306_CS_Pin, GPIO_PIN_SET); // un-select OLED
-	ssd1306_SPI_CS_port(SET);
-
-}
-
-
-#elif defined(SSD1306_USE_I2C)
+extern	char GUI_buffer[GUI_BUFFER_SIZE]; // to be used with sprintf function for formatted strings.
 
 void ssd1306_Reset(void) {
 	/* for I2C - do nothing */
 }
 
 // Send a byte to the command register
-void ssd1306_WriteCommand(uint8_t byte) {
-	// HAL_I2C_Mem_Write(&SSD1306_I2C_PORT, SSD1306_I2C_ADDR, 0x00, 1, &byte, 1, HAL_MAX_DELAY);
+void ssd1306_WriteCommand(uint8_t byte)
+{
 	I2C3_memory_write(0x3C, 0x00, &byte , 1);
-//	delay_ms(1);
-//	void I2C3_memory_write(unsigned int ssd1306_address, uint8_t memory_address, uint8_t *send_buffer, int n_bytes)
 }
 
 // Send data
-void ssd1306_WriteData(uint8_t* buffer, size_t buff_size) {
-	// HAL_I2C_Mem_Write(&SSD1306_I2C_PORT, SSD1306_I2C_ADDR, 0x40, 1, buffer, buff_size, HAL_MAX_DELAY);
+void ssd1306_WriteData(uint8_t* buffer, size_t buff_size)
+{
 	I2C3_memory_write(0x3C, 0x40, buffer , buff_size);
 }
 
-
-#else
-#error "You should define SSD1306_USE_SPI or SSD1306_USE_I2C macro"
-#endif
-
-
-
 // Screenbuffer
-static uint8_t SSD1306_Buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
+//static uint8_t SSD1306_Buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];   // my temp modification
+uint8_t SSD1306_Buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
 
 // Screen object
 static SSD1306_t SSD1306;
@@ -215,7 +151,47 @@ void ssd1306_DrawPixel(uint8_t x, uint8_t y, SSD1306_COLOR color) {
     
     // Draw in the right color
     if(color == White) {
-        SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] |= 1 << (y % 8);
+    //    SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] |= 1 << (y % 8); // replace this line with mod.
+
+        //***** my modification for height 32 (every second vertical line is written)
+
+   	int initial_y = y;
+
+    	if((y % 8) == 0)
+    		y = 1;
+    	else if((y % 8) == 1)
+    		y = 3;
+    	else if((y % 8) == 2)
+    		y = 5;
+    	else if((y % 8) == 3)
+    		y = 7;
+
+    	else if((y % 8) == 4)
+    		y = 1;
+    	//	buffer_pos = buffer_pos + SSD1306_WIDTH;
+
+    	else if((y % 8) == 5)
+    		y = 3;
+    	else if((y % 8) == 6)
+    		y = 5;
+    	else if((y % 8) == 7)
+    		y = 7;
+
+    	int buffer_pos = x + (initial_y / 8) * SSD1306_WIDTH * 2;  // my
+    	int buffer_value = 1 << (y % 8);
+
+    	if(initial_y % 8 == 4 || initial_y % 8 == 5 || initial_y % 8 == 6 || initial_y % 8 == 7) // my
+    		buffer_pos = buffer_pos + SSD1306_WIDTH; // my
+
+    	SSD1306_Buffer[buffer_pos] |= buffer_value;
+
+    	// end of my mod.
+
+
+
+
+
+//****************** mod end
     } else { 
         SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] &= ~(1 << (y % 8));
     }
@@ -235,7 +211,7 @@ char ssd1306_WriteChar(char ch, FontDef Font, SSD1306_COLOR color) {
         // Not enough space on current line
         return 0;
     }
-    
+  /*   original code
     // Use the font to write
     for(i = 0; i < Font.FontHeight; i++) {
         b = Font.data[(ch - 32) * Font.FontHeight + i];
@@ -247,7 +223,48 @@ char ssd1306_WriteChar(char ch, FontDef Font, SSD1306_COLOR color) {
             }
         }
     }
+    */
     
+    // my code
+    // Use the font to write
+
+    uint16_t one_line_dots_pos = ch - 32; //
+    uint16_t one_line_dots;
+
+    for(i = 0; i < Font.FontHeight; i++)
+    {
+    	one_line_dots = Font.data[one_line_dots_pos * Font.FontHeight + i];
+
+    //	sprintf(GUI_buffer, "")
+
+    	print_binary(one_line_dots, 16);
+
+    	sprintf(GUI_buffer, "%lu\n" , one_line_dots_pos * Font.FontHeight + i);
+    	GUI_send_string(GUI_buffer);
+
+
+        for(j = 0; j < Font.FontWidth; j++)
+        {
+        	if((one_line_dots << j) & 0x8000)
+        		ssd1306_DrawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (SSD1306_COLOR) color);
+
+
+        	// !!!!! This was causing the problem !!! But printf does not show problem here ?!?!?
+        	else
+        	{
+        		ssd1306_DrawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (SSD1306_COLOR)!color);
+
+            	sprintf(GUI_buffer, "Removed x = %d , y = %d\n", SSD1306.CurrentX + j, (SSD1306.CurrentY + i));
+            	GUI_send_string(GUI_buffer);
+
+        	}
+        }
+    }
+    
+    GUI_send_char('\n');
+
+
+
     // The current space is now taken
     SSD1306.CurrentX += Font.FontWidth;
     

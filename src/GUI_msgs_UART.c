@@ -10,7 +10,7 @@
 // pin PA2 - USART2_TX
 // pin PA3 - USART2_RX
 
-#include <GUI_msgs_UART.h>
+#include "GUI_msgs_UART.h"
 #include "stm32l4xx.h"
 #include <stdio.h>
 #include <string.h>
