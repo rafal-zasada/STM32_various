@@ -4,4 +4,5 @@
 .cproject
 .project
 stm32l4_flash.ld
-training_ssd1306.elf.launch
+training_various.ssd1306.elf.launch
+stm32l4_flash.ld

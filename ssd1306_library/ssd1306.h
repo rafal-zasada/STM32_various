@@ -10,68 +10,34 @@
 
 #include <stddef.h>
 
-
-/*
-#if defined(STM32F1)
-#include "stm32f1xx_hal.h"
-#elif defined(STM32F4)
-#include "stm32f4xx_hal.h"
-#elif defined(STM32L4)
-#include "stm32l4xx_hal.h"
-#elif defined(STM32F3)
-#include "stm32f3xx_hal.h"
-#else
- #error "SSD1306 library was tested only on STM32F1, STM32F3, STM32F4, STM32L4 MCU families. Please modify ssd1306.h if you know what you are doing. Also please send a pull request if it turns out the library works on other MCU's as well!"
-#endif
-*/
-
-#include "stm32l4xx.h" // above code for microcontroller selection replaced with this line
+//#include "stm32l4xx.h"
 
 #include "ssd1306_fonts.h"
 
+// un-comment your SSD1306 OLED type (this will also select correct addressing as they are not the same)
+#define SSD1306_128x32
+//#define SSD1306_128x64
 
-/* vvv SPI config vvv */
-/*
-#ifndef SSD1306_SPI_PORT
-#define SSD1306_SPI_PORT        hspi2
+// make sure SSD1306_128x32 or SSD1306_128x64 has been chosen
+#if defined SSD1306_128x32 //
+#elif defined SSD1306_128x64
+#else
+#error "You must define either SSD1306_128x32 or SSD1306_128x64"
 #endif
-
-#ifndef SSD1306_CS_Port
-#define SSD1306_CS_Port         GPIOB
+#if ((defined SSD1306_128x32) && (defined SSD1306_128x64))
+#error "Select only one SSD1306 size"
 #endif
-#ifndef SSD1306_CS_Pin
-#define SSD1306_CS_Pin          GPIO_PIN_12
-#endif
-
-#ifndef SSD1306_DC_Port
-#define SSD1306_DC_Port         GPIOB
-#endif
-#ifndef SSD1306_DC_Pin
-#define SSD1306_DC_Pin          GPIO_PIN_14
-#endif
-
-#ifndef SSD1306_Reset_Port
-#define SSD1306_Reset_Port      GPIOA
-#endif
-#ifndef SSD1306_Reset_Pin
-#define SSD1306_Reset_Pin       GPIO_PIN_8
-#endif
-*/
-/* ^^^ SPI config ^^^ */
-
 
 // SSD1306 OLED height in pixels
 #ifndef SSD1306_HEIGHT
-#define SSD1306_HEIGHT          64
+#define SSD1306_HEIGHT          64 	// Warning: this is just for buffer size calculation. OLED with height 32 still needs 64 defined here because of
+									// different addressing mode (in page mode only every second y line is valid - for 8 bits sent only 4 bits are valid data)
 #endif
 
 // SSD1306 width in pixels
 #ifndef SSD1306_WIDTH
-#define SSD1306_WIDTH           128
+#define SSD1306_WIDTH           128 // some LEDs don't display anything in first two columns (#define   SSD1306_WIDTH   130)
 #endif
-
-// some LEDs don't display anything in first two columns
-// #define SSD1306_WIDTH           130
 
 // Enumeration for screen colors
 typedef enum {

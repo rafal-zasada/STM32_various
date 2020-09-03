@@ -7,7 +7,7 @@
 #include "print_binary.h"
 //#include <stdlib.h>
 
-extern	char GUI_buffer[GUI_BUFFER_SIZE]; // to be used with sprintf function for formatted strings.
+//extern	char GUI_buffer[GUI_BUFFER_SIZE]; // to be used with sprintf function for formatted strings.
 
 void ssd1306_Reset(void) {
 	/* for I2C - do nothing */
@@ -26,8 +26,7 @@ void ssd1306_WriteData(uint8_t* buffer, size_t buff_size)
 }
 
 // Screenbuffer
-//static uint8_t SSD1306_Buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];   // my temp modification
-uint8_t SSD1306_Buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
+static uint8_t SSD1306_Buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
 
 // Screen object
 static SSD1306_t SSD1306;
@@ -148,52 +147,44 @@ void ssd1306_DrawPixel(uint8_t x, uint8_t y, SSD1306_COLOR color) {
     if(SSD1306.Inverted) {
         color = (SSD1306_COLOR)!color;
     }
-    
+
     // Draw in the right color
-    if(color == White) {
-    //    SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] |= 1 << (y % 8); // replace this line with mod.
+    if(color == White)
+    {
+#if defined SSD1306_128x64
+    	SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] |= 1 << (y % 8);
+#else
+    	int const remap_y_for_width32[] = {1, 3, 5, 7, 1, 3, 5, 7};
+    	int initial_y = y;
 
-        //***** my modification for height 32 (every second vertical line is written)
-
-   	int initial_y = y;
-
-    	if((y % 8) == 0)
-    		y = 1;
-    	else if((y % 8) == 1)
-    		y = 3;
-    	else if((y % 8) == 2)
-    		y = 5;
-    	else if((y % 8) == 3)
-    		y = 7;
-
-    	else if((y % 8) == 4)
-    		y = 1;
-    	//	buffer_pos = buffer_pos + SSD1306_WIDTH;
-
-    	else if((y % 8) == 5)
-    		y = 3;
-    	else if((y % 8) == 6)
-    		y = 5;
-    	else if((y % 8) == 7)
-    		y = 7;
+    	y = remap_y_for_width32[y % 8];
 
     	int buffer_pos = x + (initial_y / 8) * SSD1306_WIDTH * 2;  // my
     	int buffer_value = 1 << (y % 8);
 
-    	if(initial_y % 8 == 4 || initial_y % 8 == 5 || initial_y % 8 == 6 || initial_y % 8 == 7) // my
-    		buffer_pos = buffer_pos + SSD1306_WIDTH; // my
+    	if(initial_y % 8 == 4 || initial_y % 8 == 5 || initial_y % 8 == 6 || initial_y % 8 == 7) // bits 4, 5, 6, 7 are moved to next byte
+    		buffer_pos = buffer_pos + SSD1306_WIDTH; // moved to the next byte vertically (it relates to page addressing, don't try to understand this line if you don't know how page addressing works on SSD1306)
 
     	SSD1306_Buffer[buffer_pos] |= buffer_value;
+#endif
+    } else
+    {
+#if defined SSD1306_128x64
+        SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] &= ~(1 << (y % 8));  //this line replaced (probably works for width of OLED = 64)
+#else
+        int const remap_y_for_width32[] = {1, 3, 5, 7, 1, 3, 5, 7};
+       	int initial_y = y;
 
-    	// end of my mod.
+        y = remap_y_for_width32[y % 8];
 
+        	int buffer_pos = x + (initial_y / 8) * SSD1306_WIDTH * 2;
+        	int buffer_value = 1 << (y % 8);
 
+        	if(initial_y % 8 == 4 || initial_y % 8 == 5 || initial_y % 8 == 6 || initial_y % 8 == 7)
+        		buffer_pos = buffer_pos + SSD1306_WIDTH;
 
-
-
-//****************** mod end
-    } else { 
-        SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] &= ~(1 << (y % 8));
+    	SSD1306_Buffer[buffer_pos] &= ~buffer_value;
+#endif
     }
 }
 
@@ -211,7 +202,7 @@ char ssd1306_WriteChar(char ch, FontDef Font, SSD1306_COLOR color) {
         // Not enough space on current line
         return 0;
     }
-  /*   original code
+
     // Use the font to write
     for(i = 0; i < Font.FontHeight; i++) {
         b = Font.data[(ch - 32) * Font.FontHeight + i];
@@ -223,47 +214,6 @@ char ssd1306_WriteChar(char ch, FontDef Font, SSD1306_COLOR color) {
             }
         }
     }
-    */
-    
-    // my code
-    // Use the font to write
-
-    uint16_t one_line_dots_pos = ch - 32; //
-    uint16_t one_line_dots;
-
-    for(i = 0; i < Font.FontHeight; i++)
-    {
-    	one_line_dots = Font.data[one_line_dots_pos * Font.FontHeight + i];
-
-    //	sprintf(GUI_buffer, "")
-
-    	print_binary(one_line_dots, 16);
-
-    	sprintf(GUI_buffer, "%lu\n" , one_line_dots_pos * Font.FontHeight + i);
-    	GUI_send_string(GUI_buffer);
-
-
-        for(j = 0; j < Font.FontWidth; j++)
-        {
-        	if((one_line_dots << j) & 0x8000)
-        		ssd1306_DrawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (SSD1306_COLOR) color);
-
-
-        	// !!!!! This was causing the problem !!! But printf does not show problem here ?!?!?
-        	else
-        	{
-        		ssd1306_DrawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (SSD1306_COLOR)!color);
-
-            	sprintf(GUI_buffer, "Removed x = %d , y = %d\n", SSD1306.CurrentX + j, (SSD1306.CurrentY + i));
-            	GUI_send_string(GUI_buffer);
-
-        	}
-        }
-    }
-    
-    GUI_send_char('\n');
-
-
 
     // The current space is now taken
     SSD1306.CurrentX += Font.FontWidth;
@@ -286,6 +236,7 @@ char ssd1306_WriteString(char* str, FontDef Font, SSD1306_COLOR color) {
     }
     
     // Everything ok
+
     return *str;
 }
 
